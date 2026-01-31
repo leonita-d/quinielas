@@ -109,6 +109,8 @@ export function QuinielaTable({
             key={horario.key}
             className={`px-2 py-2 text-white font-black text-xs md:text-sm border-2 border-slate-600 text-center ${
               index === 4 ? "bg-blue-700" : "bg-emerald-600"
+            } ${index === 0 ? "rounded-tl-2xl" : ""} ${
+              index === 4 ? "rounded-tr-2xl" : ""
             }`}
           >
             <div className="font-black text-base md:text-2xl">

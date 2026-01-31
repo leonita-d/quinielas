@@ -81,7 +81,7 @@ export function SidebarPanel({ fecha }: SidebarPanelProps) {
   return (
     <div className="relative h-full rounded-2xl overflow-hidden flex flex-col items-center justify-start pt-4 px-4 shadow-2xl border-4 border-emerald-300 bg-linear-to-b from-emerald-50 via-green-100 to-emerald-200">
       {/* Imagen de fondo del grillo */}
-      <div className="absolute inset-0 opacity-60">
+      <div className="absolute inset-0 opacity-60 rounded-2xl overflow-hidden">
         <Image
           src="/grillo.png"
           alt="Grillo de la suerte"
