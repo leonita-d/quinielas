@@ -3,10 +3,6 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 
-interface SidebarPanelProps {
-  fecha: string;
-}
-
 // Componente del reloj digital
 function DigitalClock() {
   const [time, setTime] = useState<string>("");
@@ -39,7 +35,7 @@ function DigitalClock() {
   );
 }
 
-export function SidebarPanel({ fecha }: SidebarPanelProps) {
+export function SidebarPanel() {
   // Variables editables para el panel
   const [numerazo, setNumerazo] = useState("");
   const [laFija, setLaFija] = useState("");

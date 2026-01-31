@@ -50,45 +50,11 @@ function getCurrentHourDecimal(): number {
   return now.getHours() + now.getMinutes() / 60;
 }
 
-function getFechaHoy(): string {
-  const now = getArgentinaTime();
-  const dias = [
-    "Domingo",
-    "Lunes",
-    "Martes",
-    "Miércoles",
-    "Jueves",
-    "Viernes",
-    "Sábado",
-  ];
-  const meses = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-  ];
-
-  const diaSemana = dias[now.getDay()];
-  const dia = now.getDate();
-  const mes = meses[now.getMonth()];
-
-  return `${diaSemana} ${dia} de ${mes}`;
-}
-
 function QuinielaContent() {
   const searchParams = useSearchParams();
   const isDebug = searchParams.get("debug") !== null;
 
   const [data, setData] = useState<QuinielaData | null>(null);
-  const [fechaActual, setFechaActual] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,24 +89,16 @@ function QuinielaContent() {
 
       const jsonData: QuinielaData = await response.json();
       setData(jsonData);
-    } catch (err) {
+    } catch {
       setError("Error al conectar con la API");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Carga inicial y actualizar fecha
+  // Carga inicial
   useEffect(() => {
-    setFechaActual(getFechaHoy());
     fetchData();
-
-    // Actualizar fecha cada minuto
-    const checkDateChange = setInterval(() => {
-      setFechaActual(getFechaHoy());
-    }, 60 * 1000);
-
-    return () => clearInterval(checkDateChange);
   }, [fetchData]);
 
   // Auto-refresh cada 5 minutos
@@ -195,7 +153,7 @@ function QuinielaContent() {
 
           {/* Panel lateral */}
           <div className="w-full lg:w-72 xl:w-80">
-            <SidebarPanel fecha={data?.fecha || ""} />
+            <SidebarPanel />
           </div>
         </div>
       </div>
