@@ -115,7 +115,7 @@ function QuinielaContent() {
 
   return (
     <main className="h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-2 overflow-hidden">
-      <div className="w-full px-4 h-full flex flex-col">
+      <div className="w-full p-4 h-full flex flex-col">
         {/* Header */}
         {isDebug && (
           <div className="flex justify-end mb-2">
