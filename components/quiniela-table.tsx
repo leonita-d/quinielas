@@ -97,76 +97,75 @@ export function QuinielaTable({
     }
 
     // Resto en verde lima oscuro acorde al grillo
-    return "bg-[#F4FF63]/90";
+    return "bg-[#7fb11a]/90";
   };
 
   return (
-    <div className="overflow-x-auto w-full">
-      <table className="w-full border-collapse text-center">
-        <thead>
-          <tr>
-            {horarios.map((horario, index) => (
-              <th
-                key={horario.key}
-                className={`px-3 py-4 text-white font-black text-xs md:text-sm border-2 border-slate-600 ${
-                  index === 4 ? "bg-blue-700" : "bg-emerald-600"
-                }`}
-              >
-                <div className="font-black text-xl md:text-2xl">
-                  {horario.label}
-                </div>
-                <div className="text-base md:text-lg font-bold mt-1 text-blue-100">
-                  {horario.time}
-                </div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {provincias.map((provincia) => (
-            <tr key={provincia.key}>
-              {horarios.map((horario) => {
-                const showCell = shouldShowCell(provincia.key, horario.key);
+    <div className="w-full flex-1 grid grid-rows-[auto_1fr]">
+      {/* Header row */}
+      <div className="grid grid-cols-5">
+        {horarios.map((horario, index) => (
+          <div
+            key={horario.key}
+            className={`px-2 py-2 text-white font-black text-xs md:text-sm border-2 border-slate-600 text-center ${
+              index === 4 ? "bg-blue-700" : "bg-emerald-600"
+            }`}
+          >
+            <div className="font-black text-base md:text-2xl">
+              {horario.label}
+            </div>
+            <div className="text-lg font-bold text-blue-100">
+              {horario.time}
+            </div>
+          </div>
+        ))}
+      </div>
 
-                if (!showCell) {
-                  return (
-                    <td
-                      key={horario.key}
-                      className="border-2 border-slate-600 bg-slate-700/20"
-                    />
-                  );
-                }
+      {/* Data rows */}
+      <div className="grid grid-rows-6">
+        {provincias.map((provincia) => (
+          <div key={provincia.key} className="grid grid-cols-5">
+            {horarios.map((horario) => {
+              const showCell = shouldShowCell(provincia.key, horario.key);
 
-                const numero = getNumero(provincia.key, horario.key);
-                const isEmpty = numero === "----";
-                const cellColor = getCellColor(
-                  provincia.key,
-                  horario.key,
-                  isEmpty
-                );
-
+              if (!showCell) {
                 return (
-                  <td
+                  <div
                     key={horario.key}
-                    className={`border-2 border-slate-600 px-3 py-5 ${cellColor} hover:opacity-90 transition-opacity`}
-                  >
-                    <div className="text-xl md:text-2xl font-bold text-white mb-2 drop-shadow">
-                      {provincia.label}
-                    </div>
-                    <div
-                      className={`text-4xl md:text-5xl font-black drop-shadow-lg ${
-                        loading ? "animate-pulse text-slate-400" : "text-white"
-                      }`}
-                    >
-                      {loading ? "----" : numero}
-                    </div>
-                  </td>
+                    className="border-2 border-slate-600 bg-slate-700/20"
+                  />
                 );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              }
+
+              const numero = getNumero(provincia.key, horario.key);
+              const isEmpty = numero === "----";
+              const cellColor = getCellColor(
+                provincia.key,
+                horario.key,
+                isEmpty
+              );
+
+              return (
+                <div
+                  key={horario.key}
+                  className={`border-2 border-slate-600 px-2 py-2 ${cellColor} hover:opacity-90 transition-opacity flex flex-col items-center justify-center text-center`}
+                >
+                  <div className="text-base md:text-2xl font-bold text-white mb-1 drop-shadow">
+                    {provincia.label}
+                  </div>
+                  <div
+                    className={`text-5xl font-black drop-shadow-lg ${
+                      loading ? "animate-pulse text-slate-400" : "text-white"
+                    }`}
+                  >
+                    {loading ? "----" : numero}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

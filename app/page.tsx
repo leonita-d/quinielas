@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { QuinielaTable } from "@/components/quiniela-table";
 import { SidebarPanel } from "@/components/sidebar-panel";
 import { CierresSection } from "@/components/cierres-section";
@@ -83,6 +84,9 @@ function getFechaHoy(): string {
 }
 
 export default function QuinielaPage() {
+  const searchParams = useSearchParams();
+  const isDebug = searchParams.get("debug") !== null;
+
   const [data, setData] = useState<QuinielaData | null>(null);
   const [fechaActual, setFechaActual] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -152,20 +156,23 @@ export default function QuinielaPage() {
   const nocturnasAyer = data?.nocturnasAyer || {};
 
   return (
-    <main className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 py-2 px-2 md:px-3">
-      <div className="w-full px-6">
+    <main className="h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-2 overflow-hidden">
+      <div className="w-full px-4 h-full flex flex-col">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-          <div />
-          <Button
-            onClick={fetchData}
-            disabled={loading}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg"
-          >
-            <RefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
-            Actualizar
-          </Button>
-        </div>
+        {isDebug && (
+          <div className="flex justify-end mb-2">
+            <Button
+              onClick={fetchData}
+              disabled={loading}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl transition-all duration-200 shadow-lg"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
+              Actualizar
+            </Button>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 bg-red-900/50 border-2 border-red-500 text-red-200 rounded-xl text-sm font-semibold backdrop-blur">
@@ -174,9 +181,9 @@ export default function QuinielaPage() {
         )}
 
         {/* Main content */}
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
           {/* Tabla de quiniela */}
-          <div className="flex-1 bg-slate-800/80 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-emerald-500/30">
+          <div className="flex-1 bg-slate-800/80 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-emerald-500/30 flex flex-col">
             <QuinielaTable
               data={data}
               loading={loading}
@@ -187,35 +194,9 @@ export default function QuinielaPage() {
           </div>
 
           {/* Panel lateral */}
-          <div className="w-full lg:w-80 xl:w-96">
+          <div className="w-full lg:w-72 xl:w-80">
             <SidebarPanel fecha={data?.fecha || ""} />
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-8 text-center space-y-2">
-          <p className="text-slate-400 text-xs md:text-sm">
-            <span className="text-emerald-400 font-semibold">
-              Última actualización:
-            </span>{" "}
-            {data?.consultado || "---"}
-          </p>
-          {data?.fechaAyer && (
-            <p className="text-emerald-400 text-xs md:text-sm font-semibold">
-              Nocturna del: {data.fechaAyer}
-            </p>
-          )}
-          <p className="text-slate-400 text-xs md:text-sm">
-            Datos extraídos de{" "}
-            <a
-              href="https://www.jugandoonline.com.ar"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-emerald-400 hover:text-emerald-300 font-bold underline transition-colors"
-            >
-              jugandoonline.com.ar
-            </a>
-          </p>
         </div>
       </div>
     </main>
