@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { QuinielaTable } from "@/components/quiniela-table";
 import { SidebarPanel } from "@/components/sidebar-panel";
@@ -83,7 +83,7 @@ function getFechaHoy(): string {
   return `${diaSemana} ${dia} de ${mes}`;
 }
 
-export default function QuinielaPage() {
+function QuinielaContent() {
   const searchParams = useSearchParams();
   const isDebug = searchParams.get("debug") !== null;
 
@@ -200,5 +200,13 @@ export default function QuinielaPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function QuinielaPage() {
+  return (
+    <Suspense fallback={<div className="h-screen bg-slate-900" />}>
+      <QuinielaContent />
+    </Suspense>
   );
 }
