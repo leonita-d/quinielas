@@ -3,33 +3,42 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 
+// Funcion para obtener la hora de Argentina
+function getArgentinaTimeString(): string {
+  const now = new Date(
+    new Date().toLocaleString("en-US", {
+      timeZone: "America/Argentina/Buenos_Aires",
+    })
+  );
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
+}
+
 // Componente del reloj digital
 function DigitalClock() {
-  const [time, setTime] = useState<string>("");
+  // Inicializar con un valor valido para evitar flashes en el primer render
+  const [time, setTime] = useState<string>(() => getArgentinaTimeString());
 
   useEffect(() => {
-    // Establecer hora inicial
-    const updateTime = () => {
-      const now = new Date(
-        new Date().toLocaleString("en-US", {
-          timeZone: "America/Argentina/Buenos_Aires",
-        })
-      );
-      const hours = String(now.getHours()).padStart(2, "0");
-      const minutes = String(now.getMinutes()).padStart(2, "0");
-      const seconds = String(now.getSeconds()).padStart(2, "0");
-      setTime(`${hours}:${minutes}:${seconds}`);
-    };
-
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
+    const interval = setInterval(() => {
+      setTime(getArgentinaTimeString());
+    }, 1000);
     return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="bg-blue-950 border-4 border-blue-900 rounded-xl px-4 md:px-6 py-2 md:py-3 shadow-2xl">
-      <div className="text-blue-100 font-black text-3xl md:text-4xl drop-shadow-lg font-mono tracking-wider">
-        {time || "00:00:00"}
+      {/* Contenedor con dimensiones fijas para evitar reflow */}
+      <div
+        className="text-blue-100 font-black text-3xl md:text-4xl drop-shadow-lg font-mono tracking-wider"
+        style={{
+          minWidth: "8ch",
+          textAlign: "center",
+        }}
+      >
+        {time}
       </div>
     </div>
   );
