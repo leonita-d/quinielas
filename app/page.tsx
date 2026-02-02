@@ -34,8 +34,8 @@ const HORARIOS_SORTEO = {
   Nocturna: 21.17,
 };
 
-// Intervalo de actualizacion automatica (5 minutos)
-const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
+// Intervalo de actualizacion automatica (1 minuto)
+const AUTO_REFRESH_INTERVAL = 1 * 60 * 1000;
 
 function getArgentinaTime(): Date {
   return new Date(
@@ -101,7 +101,6 @@ function QuinielaContent() {
     fetchData();
   }, [fetchData]);
 
-  // Auto-refresh cada 5 minutos
   useEffect(() => {
     const interval = setInterval(() => {
       fetchData();
