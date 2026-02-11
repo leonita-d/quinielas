@@ -1,34 +1,52 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 
 // Funcion para obtener la hora de Argentina
-function getArgentinaTimeString(): string {
+function getArgentinaTimeParts(): {
+  hours: string;
+  minutes: string;
+  seconds: string;
+} {
   const now = new Date(
     new Date().toLocaleString("en-US", {
       timeZone: "America/Argentina/Buenos_Aires",
     })
   );
-  const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-  return `${hours}:${minutes}:${seconds}`;
+  return {
+    hours: String(now.getHours()).padStart(2, "0"),
+    minutes: String(now.getMinutes()).padStart(2, "0"),
+    seconds: String(now.getSeconds()).padStart(2, "0"),
+  };
 }
 
 // Componente del reloj digital
 function DigitalClock() {
-  // Inicializar con un valor valido para evitar flashes en el primer render
-  const [time, setTime] = useState<string>(() => getArgentinaTimeString());
+  const initial = getArgentinaTimeParts();
+  const hoursRef = useRef<HTMLSpanElement>(null);
+  const minutesRef = useRef<HTMLSpanElement>(null);
+  const secondsRef = useRef<HTMLSpanElement>(null);
+  const lastTimeRef = useRef(initial);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
 
     const tick = () => {
-      setTime((prevTime) => {
-        const nextTime = getArgentinaTimeString();
-        return prevTime === nextTime ? prevTime : nextTime;
-      });
+      const next = getArgentinaTimeParts();
+      const prev = lastTimeRef.current;
+
+      // Actualizar solo el nodo que cambia minimiza repaints en TVs.
+      if (next.hours !== prev.hours && hoursRef.current) {
+        hoursRef.current.textContent = next.hours;
+      }
+      if (next.minutes !== prev.minutes && minutesRef.current) {
+        minutesRef.current.textContent = next.minutes;
+      }
+      if (next.seconds !== prev.seconds && secondsRef.current) {
+        secondsRef.current.textContent = next.seconds;
+      }
+      lastTimeRef.current = next;
 
       // Reprogramar cerca del siguiente segundo reduce jitter en navegadores lentos.
       const msToNextSecond = 1000 - (Date.now() % 1000);
@@ -41,18 +59,20 @@ function DigitalClock() {
   }, []);
 
   return (
-    <div className="bg-blue-950 border-4 border-blue-900 rounded-xl px-4 md:px-6 py-2 md:py-3 shadow-2xl">
+    <div className="bg-blue-950 border border-blue-800 rounded-lg px-4 md:px-6 py-2 md:py-3">
       {/* Contenedor con dimensiones fijas para evitar reflow */}
       <div
         className="text-blue-100 font-black text-3xl md:text-4xl font-mono tracking-wider tabular-nums leading-none"
         style={{
           minWidth: "8ch",
           textAlign: "center",
-          // Evitar filtros CSS (drop-shadow) para prevenir parpadeos en TVs.
-          textShadow: "0 1px 1px rgba(0, 0, 0, 0.35)",
+          textShadow: "none",
+          contain: "paint",
         }}
       >
-        {time}
+        <span ref={hoursRef}>{initial.hours}</span>:
+        <span ref={minutesRef}>{initial.minutes}</span>:
+        <span ref={secondsRef}>{initial.seconds}</span>
       </div>
     </div>
   );
