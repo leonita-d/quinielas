@@ -129,10 +129,14 @@ export function SidebarPanel() {
           priority
         />
       </div>
+      <div className="absolute inset-0 bg-linear-to-b from-emerald-900/28 via-emerald-900/22 to-emerald-950/30 rounded-2xl" />
 
       <div className="relative z-10 text-center w-full">
         <div className="flex flex-col items-center gap-1 mb-4">
-          <h2 className="text-xl md:text-2xl font-black text-emerald-900 drop-shadow">
+          <h2
+            className="text-xl md:text-2xl font-black text-emerald-50"
+            style={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}
+          >
             Cabezas del día
           </h2>
           <DigitalClock />
@@ -141,11 +145,8 @@ export function SidebarPanel() {
         <div className="space-y-4">
           <div>
             <p
-              style={{
-                textShadow:
-                  "0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5), 0 0 30px rgba(255,255,255,0.3)",
-              }}
-              className="text-emerald-900 font-black text-3xl md:text-4xl mb-1 tracking-wider drop-shadow"
+              className="text-emerald-50 font-black text-3xl md:text-4xl mb-1 tracking-wider"
+              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}
             >
               EL NUMERAZO
             </p>
@@ -157,22 +158,18 @@ export function SidebarPanel() {
               onBlur={() => setFocusedInput(null)}
               placeholder="-"
               style={{
-                textShadow:
-                  "0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5), 0 0 30px rgba(255,255,255,0.3)",
                 caretColor:
                   focusedInput === "numerazo" ? "auto" : "transparent",
+                textShadow: "0 1px 2px rgba(0,0,0,0.35)",
               }}
-              className="text-5xl md:text-6xl font-black text-blue-950 drop-shadow-2xl bg-transparent border-none text-center w-full outline-none px-2 py-1"
+              className="text-5xl md:text-6xl font-black text-blue-950 bg-transparent border-none text-center w-full outline-none px-2 py-1"
             />
           </div>
 
           <div>
             <p
-              style={{
-                textShadow:
-                  "0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5), 0 0 30px rgba(255,255,255,0.3)",
-              }}
-              className="text-emerald-900 font-black text-3xl md:text-4xl mb-1 tracking-wider drop-shadow"
+              className="text-emerald-50 font-black text-3xl md:text-4xl mb-1 tracking-wider"
+              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}
             >
               LA FIJA
             </p>
@@ -184,21 +181,17 @@ export function SidebarPanel() {
               onBlur={() => setFocusedInput(null)}
               placeholder="-"
               style={{
-                textShadow:
-                  "0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5), 0 0 30px rgba(255,255,255,0.3)",
                 caretColor: focusedInput === "laFija" ? "auto" : "transparent",
+                textShadow: "0 1px 2px rgba(0,0,0,0.35)",
               }}
-              className="text-4xl md:text-5xl font-black text-blue-950 drop-shadow-2xl bg-transparent border-none text-center w-full outline-none px-2 py-1"
+              className="text-4xl md:text-5xl font-black text-blue-950 bg-transparent border-none text-center w-full outline-none px-2 py-1"
             />
           </div>
 
           <div>
             <p
-              style={{
-                textShadow:
-                  "0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5), 0 0 30px rgba(255,255,255,0.3)",
-              }}
-              className="text-emerald-900 font-black text-3xl md:text-4xl mb-1 tracking-wider drop-shadow"
+              className="text-emerald-50 font-black text-3xl md:text-4xl mb-1 tracking-wider"
+              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}
             >
               EL ESPECIAL
             </p>
@@ -210,12 +203,11 @@ export function SidebarPanel() {
               onBlur={() => setFocusedInput(null)}
               placeholder="-"
               style={{
-                textShadow:
-                  "0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5), 0 0 30px rgba(255,255,255,0.3)",
                 caretColor:
                   focusedInput === "elEspecial" ? "auto" : "transparent",
+                textShadow: "0 1px 2px rgba(0,0,0,0.35)",
               }}
-              className="text-4xl md:text-5xl font-black text-blue-950 drop-shadow-2xl bg-transparent border-none text-center w-full outline-none px-2 py-1"
+              className="text-4xl md:text-5xl font-black text-blue-950 bg-transparent border-none text-center w-full outline-none px-2 py-1"
             />
           </div>
         </div>
