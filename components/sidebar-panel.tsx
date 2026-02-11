@@ -22,20 +22,34 @@ function DigitalClock() {
   const [time, setTime] = useState<string>(() => getArgentinaTimeString());
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTime(getArgentinaTimeString());
-    }, 1000);
-    return () => clearInterval(interval);
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const tick = () => {
+      setTime((prevTime) => {
+        const nextTime = getArgentinaTimeString();
+        return prevTime === nextTime ? prevTime : nextTime;
+      });
+
+      // Reprogramar cerca del siguiente segundo reduce jitter en navegadores lentos.
+      const msToNextSecond = 1000 - (Date.now() % 1000);
+      timeoutId = setTimeout(tick, msToNextSecond + 10);
+    };
+
+    tick();
+
+    return () => clearTimeout(timeoutId);
   }, []);
 
   return (
     <div className="bg-blue-950 border-4 border-blue-900 rounded-xl px-4 md:px-6 py-2 md:py-3 shadow-2xl">
       {/* Contenedor con dimensiones fijas para evitar reflow */}
       <div
-        className="text-blue-100 font-black text-3xl md:text-4xl drop-shadow-lg font-mono tracking-wider"
+        className="text-blue-100 font-black text-3xl md:text-4xl font-mono tracking-wider tabular-nums leading-none"
         style={{
           minWidth: "8ch",
           textAlign: "center",
+          // Evitar filtros CSS (drop-shadow) para prevenir parpadeos en TVs.
+          textShadow: "0 1px 1px rgba(0, 0, 0, 0.35)",
         }}
       >
         {time}
