@@ -58,6 +58,7 @@ interface QuinielaResponse {
 
 const URL_HOY = "https://www.jugandoonline.com.ar/rHome.aspx";
 const URL_AYER = "https://www.jugandoonline.com.ar/rHome2-Ayer.aspx";
+const URL_NOTITIMBA = "https://notitimba.com/lots/";
 
 /* =========================
    MAPPINGS
@@ -110,6 +111,20 @@ const SORTEO_ORDER: SorteoKeyInternal[] = [
   "vespertina",
   "nocturna",
 ];
+
+// Expected sorteo completion times (Argentina time) + 15-min grace period
+// Previa ~10:15, Primero ~12:00, Matutina ~15:00, Vespertina ~18:00
+const SORTEO_DEADLINE: Partial<
+  Record<SorteoKeyInternal, { hours: number; minutes: number }>
+> = {
+  previa: { hours: 10, minutes: 30 },
+  primero: { hours: 12, minutes: 15 },
+  matutina: { hours: 15, minutes: 15 },
+  vespertina: { hours: 18, minutes: 15 },
+};
+
+// AJAX endpoint for notitimba (v=1 forces the traditional results view)
+const URL_NOTITIMBA_AJAX = `${URL_NOTITIMBA}cfms/aQsEq.php?v=1`;
 
 /* =========================
    HELPER FUNCTIONS
@@ -182,6 +197,52 @@ async function fetchHTML(url: string): Promise<string | null> {
     return await res.text();
   } catch (e) {
     console.error("Fetch error:", url, e);
+    return null;
+  }
+}
+
+// Two-step fetch for notitimba: first visit /lots/ to get session cookies,
+// then call the AJAX endpoint which returns today's results HTML.
+// The AJAX endpoint requires a valid session (returns error without cookies).
+async function fetchNotitimbaData(): Promise<string | null> {
+  const headers = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
+  };
+
+  try {
+    // Step 1: Visit the page to establish a session and get cookies
+    const pageRes = await fetch(URL_NOTITIMBA, {
+      cache: "no-store",
+      headers,
+    });
+
+    const cookies = pageRes.headers.getSetCookie?.() ?? [];
+    const cookieString = cookies.map((c) => c.split(";")[0]).join("; ");
+
+    if (!cookieString) {
+      console.warn("[Quiniela] No session cookies received from notitimba.");
+    }
+
+    // Step 2: Fetch the AJAX endpoint with session cookies
+    // v=1 forces the traditional results view (instead of live "sorteo virtual")
+    const ajaxRes = await fetch(URL_NOTITIMBA_AJAX, {
+      cache: "no-store",
+      headers: {
+        ...headers,
+        Accept: "*/*",
+        Referer: URL_NOTITIMBA,
+        Cookie: cookieString,
+      },
+    });
+
+    const buffer = await ajaxRes.arrayBuffer();
+    return new TextDecoder("iso-8859-1").decode(buffer);
+  } catch (e) {
+    console.error("[Quiniela] Fetch error (notitimba):", e);
     return null;
   }
 }
@@ -276,6 +337,107 @@ function parseAyerPage(html: string | null): ParsedData {
 }
 
 /* =========================
+   NOTITIMBA FALLBACK PARSER
+========================= */
+
+// Match province name from notitimba HTML to internal key (handles encoding edge cases)
+function matchNotitimbaProvince(text: string): ProvinciaKeyInternal | null {
+  const t = text.trim().toLowerCase();
+  if (t.includes("ciudad")) return "ciudad";
+  if (t.includes("provincia")) return "provincia";
+  if (t.includes("santa fe")) return "santa_fe";
+  if (t.includes("rdoba")) return "cordoba";
+  if (t.includes("entre r")) return "entre_rios";
+  if (t.includes("montevideo")) return "montevideo";
+  return null;
+}
+
+// Check if a sorteo should have completed by now (past its time + 15-min grace)
+function isSorteoPastDeadline(sorteo: SorteoKeyInternal): boolean {
+  const deadline = SORTEO_DEADLINE[sorteo];
+  if (!deadline) return false;
+
+  const now = getArgentinaTime();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const deadlineMinutes = deadline.hours * 60 + deadline.minutes;
+
+  return currentMinutes >= deadlineMinutes;
+}
+
+// Check if a sorteo is missing data for main provinces (Ciudad & Provincia)
+function isSorteoMissingData(
+  data: ParsedData,
+  sorteo: SorteoKeyInternal
+): boolean {
+  const mainProvinces: ProvinciaKeyInternal[] = ["ciudad", "provincia"];
+  return mainProvinces.every((p) => !data[sorteo][p]);
+}
+
+// Parse the notitimba AJAX response — it returns today's results inside
+// <table class="qTbl"> elements. Columns match SORTEO_ORDER:
+// PREVIA, PRIMERO, MATUTINA, VESPERTINA, NOCTURNA.
+// Numbers live in <div class="qTDc">NUMBER</div>; empty cells use class "qTD".
+function parseNotitimbaResponse(
+  html: string | null,
+  sorteosNeeded: SorteoKeyInternal[]
+): ParsedData {
+  const data = emptyParsedData();
+  if (!html) return data;
+
+  const $ = cheerio.load(html);
+
+  $("table.qTbl").each((_, table) => {
+    $(table)
+      .find("tr")
+      .each((_, row) => {
+        const th = $(row).find("th").first();
+        if (th.length === 0) return;
+
+        const provinciaKey = matchNotitimbaProvince(th.text());
+        if (!provinciaKey) return;
+
+        // Each <td> corresponds to a sorteo column in order
+        $(row)
+          .find("td")
+          .each((colIndex, cell) => {
+            if (colIndex >= SORTEO_ORDER.length) return;
+            const sorteo = SORTEO_ORDER[colIndex];
+            if (!sorteosNeeded.includes(sorteo)) return;
+
+            const numDiv = $(cell).find(".qTDc");
+            if (numDiv.length > 0) {
+              const text = numDiv.text().trim();
+              if (/^\d{4}$/.test(text)) {
+                data[sorteo][provinciaKey] = text;
+              }
+            }
+          });
+      });
+  });
+
+  return data;
+}
+
+// Merge fallback data into primary data — only fills in missing values
+function mergeParsedData(
+  primary: ParsedData,
+  fallback: ParsedData
+): ParsedData {
+  const merged = emptyParsedData();
+
+  for (const sorteo of SORTEO_ORDER) {
+    merged[sorteo] = { ...primary[sorteo] };
+    for (const [provincia, value] of Object.entries(fallback[sorteo])) {
+      if (!merged[sorteo][provincia as ProvinciaKeyInternal] && value) {
+        merged[sorteo][provincia as ProvinciaKeyInternal] = value;
+      }
+    }
+  }
+
+  return merged;
+}
+
+/* =========================
    TRANSFORM TO TABLE FORMAT
 ========================= */
 
@@ -342,8 +504,47 @@ export async function GET() {
     ]);
 
     // Parse pages with their specific parsers
-    const dataHoy = parseHoyPage(htmlHoy);
+    let dataHoy = parseHoyPage(htmlHoy);
     const dataAyer = parseAyerPage(htmlAyer);
+
+    // Determine which sorteos are past their deadline but missing from the primary source
+    const sorteosToFallback: SorteoKeyInternal[] = (
+      ["previa", "primero", "matutina", "vespertina"] as SorteoKeyInternal[]
+    ).filter(
+      (sorteo) =>
+        isSorteoPastDeadline(sorteo) && isSorteoMissingData(dataHoy, sorteo)
+    );
+
+    // If any sorteos need fallback, try notitimba
+    if (sorteosToFallback.length > 0) {
+      console.log(
+        `[Quiniela] Primary source missing data for: ${sorteosToFallback.join(
+          ", "
+        )}. Trying notitimba fallback...`
+      );
+
+      const htmlNotitimba = await fetchNotitimbaData();
+      const dataFallback = parseNotitimbaResponse(
+        htmlNotitimba,
+        sorteosToFallback
+      );
+      dataHoy = mergeParsedData(dataHoy, dataFallback);
+
+      const filledSorteos = sorteosToFallback.filter(
+        (s) => Object.keys(dataFallback[s]).length > 0
+      );
+      if (filledSorteos.length > 0) {
+        console.log(
+          `[Quiniela] Notitimba fallback filled data for: ${filledSorteos.join(
+            ", "
+          )}`
+        );
+      } else {
+        console.log(
+          `[Quiniela] Notitimba fallback had no data for today either.`
+        );
+      }
+    }
 
     // Transform to the format expected by the table
     const response = transformToTableFormat(dataHoy, dataAyer);
