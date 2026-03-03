@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { QuinielaTable } from "@/components/quiniela-table";
 import { SidebarPanel } from "@/components/sidebar-panel";
 import { CierresSection } from "@/components/cierres-section";
@@ -45,25 +45,58 @@ function getArgentinaTime(): Date {
   );
 }
 
-function getCurrentHourDecimal(): number {
+function getCurrentHourDecimal(simulatedTime: string | null): number {
+  if (simulatedTime) {
+    const match = simulatedTime.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+    if (match) {
+      return Number(match[1]) + Number(match[2]) / 60;
+    }
+  }
+
   const now = getArgentinaTime();
   return now.getHours() + now.getMinutes() / 60;
 }
 
 function QuinielaContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const isDebug = searchParams.get("debug") !== null;
+  const simulatedTimeParam = searchParams.get("simTime");
+  const simulatedTime =
+    simulatedTimeParam && /^([01]\d|2[0-3]):([0-5]\d)$/.test(simulatedTimeParam)
+      ? simulatedTimeParam
+      : null;
 
   const [data, setData] = useState<QuinielaData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [simTimeInput, setSimTimeInput] = useState(simulatedTime ?? "");
+
+  useEffect(() => {
+    setSimTimeInput(simulatedTime ?? "");
+  }, [simulatedTime]);
+
+  const setDebugQueryTime = useCallback(
+    (time: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("debug", "true");
+      if (time) {
+        params.set("simTime", time);
+      } else {
+        params.delete("simTime");
+      }
+      router.replace(`${pathname}?${params.toString()}`);
+    },
+    [pathname, router, searchParams]
+  );
 
   // Determinar que horarios mostrar segun la hora actual
   const getVisibleHorarios = useCallback((): string[] => {
-    const currentHour = getCurrentHourDecimal();
+    const currentHour = getCurrentHourDecimal(simulatedTime);
     const visible: string[] = [];
 
-    // Siempre mostrar Nocturna (siempre muestra datos de ayer)
+    // Siempre mostrar Nocturna
     visible.push("Nocturna");
 
     if (currentHour >= 8) {
@@ -74,14 +107,18 @@ function QuinielaContent() {
     }
 
     return visible;
-  }, []);
+  }, [simulatedTime]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(API_URL);
+      const params = new URLSearchParams();
+      if (isDebug) params.set("debug", "true");
+      if (isDebug && simulatedTime) params.set("simTime", simulatedTime);
+      const url = params.toString() ? `${API_URL}?${params.toString()}` : API_URL;
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error("Error al conectar con la API");
@@ -94,7 +131,7 @@ function QuinielaContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isDebug, simulatedTime]);
 
   // Carga inicial
   useEffect(() => {
@@ -117,7 +154,45 @@ function QuinielaContent() {
       <div className="w-full p-4 h-full flex flex-col">
         {/* Header */}
         {isDebug && (
-          <div className="flex justify-end mb-2">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-end gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="sim-time"
+                className="text-xs text-emerald-200/90 font-semibold"
+              >
+                Hora simulada
+              </label>
+              <input
+                id="sim-time"
+                type="time"
+                value={simTimeInput}
+                onChange={(e) => setSimTimeInput(e.target.value)}
+                className="bg-slate-900/80 border border-emerald-500/40 text-emerald-100 text-sm rounded-md px-2 py-1"
+              />
+              <Button
+                onClick={() => {
+                  const value = simTimeInput.trim();
+                  if (!value) {
+                    setDebugQueryTime(null);
+                    return;
+                  }
+                  if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(value)) {
+                    setDebugQueryTime(value);
+                  }
+                }}
+                disabled={loading}
+                className="bg-slate-700 hover:bg-slate-600 text-white font-semibold py-1 px-3 rounded-md"
+              >
+                Aplicar
+              </Button>
+              <Button
+                onClick={() => setDebugQueryTime(null)}
+                disabled={loading}
+                className="bg-slate-700 hover:bg-slate-600 text-white font-semibold py-1 px-3 rounded-md"
+              >
+                Hora real
+              </Button>
+            </div>
             <Button
               onClick={fetchData}
               disabled={loading}

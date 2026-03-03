@@ -113,7 +113,7 @@ const SORTEO_ORDER: SorteoKeyInternal[] = [
 ];
 
 // Expected sorteo completion times (Argentina time) + 15-min grace period
-// Previa ~10:15, Primero ~12:00, Matutina ~15:00, Vespertina ~18:00
+// Previa ~10:15, Primero ~12:00, Matutina ~15:00, Vespertina ~18:00, Nocturna ~21:00
 const SORTEO_DEADLINE: Partial<
   Record<SorteoKeyInternal, { hours: number; minutes: number }>
 > = {
@@ -121,6 +121,7 @@ const SORTEO_DEADLINE: Partial<
   primero: { hours: 12, minutes: 15 },
   matutina: { hours: 15, minutes: 15 },
   vespertina: { hours: 18, minutes: 15 },
+  nocturna: { hours: 21, minutes: 15 },
 };
 
 // AJAX endpoint for notitimba (v=1 forces the traditional results view)
@@ -170,11 +171,25 @@ function getFechaString(date: Date): string {
   return `${diaSemana} ${dia} de ${mes}`;
 }
 
-function getConsultadoString(): string {
-  const now = getArgentinaTime();
+function getConsultadoString(now: Date): string {
   const hours = now.getHours().toString().padStart(2, "0");
   const minutes = now.getMinutes().toString().padStart(2, "0");
   return `${hours}:${minutes} hs`;
+}
+
+function getDebugNowFromRequest(request: Request): Date | null {
+  const url = new URL(request.url);
+  const isDebug = url.searchParams.get("debug") !== null;
+  const simTime = url.searchParams.get("simTime");
+
+  if (!isDebug || !simTime) return null;
+
+  const match = simTime.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if (!match) return null;
+
+  const now = getArgentinaTime();
+  now.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  return now;
 }
 
 /* =========================
@@ -370,11 +385,10 @@ function matchNotitimbaProvince(text: string): ProvinciaKeyInternal | null {
 }
 
 // Check if a sorteo should have completed by now (past its time + 15-min grace)
-function isSorteoPastDeadline(sorteo: SorteoKeyInternal): boolean {
+function isSorteoPastDeadline(sorteo: SorteoKeyInternal, now: Date): boolean {
   const deadline = SORTEO_DEADLINE[sorteo];
   if (!deadline) return false;
 
-  const now = getArgentinaTime();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const deadlineMinutes = deadline.hours * 60 + deadline.minutes;
 
@@ -445,13 +459,13 @@ function parseNotitimbaResponse(
 // The #Unoct table has historical nocturna draws with dates in onclick attrs:
 // <td onclick="prm('YYYY-MM-DD',idx,4)">NUMBER</td>
 function parseNotitimbaNocturnaAyer(
-  staticHtml: string | null
+  staticHtml: string | null,
+  now: Date
 ): Record<ProvinciaKeyInternal, string | undefined> {
   const result: Record<string, string | undefined> = {};
   if (!staticHtml) return result as Record<ProvinciaKeyInternal, string | undefined>;
 
   const $ = cheerio.load(staticHtml);
-  const now = getArgentinaTime();
   const ayer = new Date(now);
   ayer.setDate(ayer.getDate() - 1);
   const ayerDate = getDateString(ayer);
@@ -508,16 +522,16 @@ function mergeParsedData(
 
 function transformToTableFormat(
   dataHoy: ParsedData,
-  dataAyer: ParsedData
+  dataAyer: ParsedData,
+  now: Date
 ): QuinielaResponse {
-  const now = getArgentinaTime();
   const ayer = new Date(now);
   ayer.setDate(ayer.getDate() - 1);
 
   const result: QuinielaResponse = {
     fecha: getFechaString(now),
     fechaAyer: getFechaString(ayer),
-    consultado: getConsultadoString(),
+    consultado: getConsultadoString(now),
     sorteos: {},
     nocturnasAyer: {},
   };
@@ -529,14 +543,25 @@ function transformToTableFormat(
   }
 
   // Fill sorteos with today's data
+  // Before the nocturna draw time, keep showing yesterday's nocturna values.
+  const shouldUseAyerNocturnaForHoy = !isSorteoPastDeadline("nocturna", now);
   for (const sorteoInternal of SORTEO_ORDER) {
     const sorteoTable = SORTEO_TO_TABLE[sorteoInternal];
 
     for (const [provinciaInternal, provinciaTable] of Object.entries(
       PROVINCIA_TO_TABLE
     )) {
-      const value =
-        dataHoy[sorteoInternal][provinciaInternal as ProvinciaKeyInternal];
+      const provinciaKey = provinciaInternal as ProvinciaKeyInternal;
+      let value = dataHoy[sorteoInternal][provinciaKey];
+
+      if (
+        sorteoInternal === "nocturna" &&
+        !value &&
+        shouldUseAyerNocturnaForHoy
+      ) {
+        value = dataAyer.nocturna[provinciaKey];
+      }
+
       if (value) {
         result.sorteos[provinciaTable]![sorteoTable] = value;
       }
@@ -560,8 +585,10 @@ function transformToTableFormat(
    GET ROUTE
 ========================= */
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const now = getDebugNowFromRequest(request) ?? getArgentinaTime();
+
     // Fetch HTML from both pages
     const [htmlHoy, htmlAyer] = await Promise.all([
       fetchHTML(URL_HOY),
@@ -573,11 +600,9 @@ export async function GET() {
     let dataAyer = parseAyerPage(htmlAyer);
 
     // Determine which of today's sorteos need fallback
-    const sorteosToFallback: SorteoKeyInternal[] = (
-      ["previa", "primero", "matutina", "vespertina"] as SorteoKeyInternal[]
-    ).filter(
+    const sorteosToFallback: SorteoKeyInternal[] = SORTEO_ORDER.filter(
       (sorteo) =>
-        isSorteoPastDeadline(sorteo) && isSorteoMissingData(dataHoy, sorteo)
+        isSorteoPastDeadline(sorteo, now) && isSorteoMissingData(dataHoy, sorteo)
     );
 
     // Check if yesterday's nocturna also needs fallback
@@ -615,7 +640,7 @@ export async function GET() {
 
       // Fill yesterday's nocturna from the static historical table (#Unoct)
       if (nocturnaAyerMissing) {
-        const nocturnaFallback = parseNotitimbaNocturnaAyer(staticHtml);
+        const nocturnaFallback = parseNotitimbaNocturnaAyer(staticHtml, now);
         for (const [provincia, value] of Object.entries(nocturnaFallback)) {
           if (
             value &&
@@ -635,7 +660,7 @@ export async function GET() {
     }
 
     // Transform to the format expected by the table
-    const response = transformToTableFormat(dataHoy, dataAyer);
+    const response = transformToTableFormat(dataHoy, dataAyer, now);
 
     return NextResponse.json(response);
   } catch (e) {
