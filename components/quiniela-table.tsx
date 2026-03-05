@@ -47,9 +47,12 @@ export function QuinielaTable({
 }: QuinielaTableProps) {
   // Obtener numero para un horario y provincia
   const getNumero = (provincia: string, horario: string): string => {
-    // La columna NOCTURNA siempre muestra los numeros de AYER
-    // Para Montevideo se guarda su Vespertina de ayer en nocturnasAyer
+    // Nocturna: backend fills sorteos[x].Nocturna with yesterday's values
+    // before the draw and today's values after. Fall back to nocturnasAyer
+    // if sorteos doesn't have it yet.
     if (horario === "Nocturna") {
+      const fromSorteos = data?.sorteos?.[provincia]?.Nocturna;
+      if (fromSorteos) return fromSorteos;
       if (nocturnasAyer[provincia]) {
         return nocturnasAyer[provincia] || "----";
       }
